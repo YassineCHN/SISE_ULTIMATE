@@ -50,6 +50,9 @@ class SessionFeatures:
         float  # Écart-type des intervalles entre inputs (0 = très régulier)
     )
 
+    # --- Source ---
+    source: str = "unknown"  # "controller" ou "keyboard"
+
     # --- Score ---
     score: int = 0
 
@@ -176,6 +179,10 @@ class SessionRecorder:
         else:
             input_regularity = 0.0
 
+        # Source : controller si au moins 80% des frames viennent d'une manette
+        kb_count = sum(1 for s in states if s.source == "keyboard")
+        source = "keyboard" if kb_count / len(states) > 0.5 else "controller"
+
         return SessionFeatures(
             player_name=self.player_name,
             game_id=self.game_id,
@@ -198,6 +205,7 @@ class SessionRecorder:
             rt_brutality=rt_brutality,
             reaction_time_avg_ms=0.0,  # À implémenter selon le jeu
             input_regularity=input_regularity,
+            source=source,
             score=self.score,
         )
 
