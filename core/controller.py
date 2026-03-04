@@ -63,7 +63,9 @@ class Controller:
         elif any(k in name for k in ("playstation", "dualshock", "dualsense", "ps4", "ps5", "ps3", "sony", "wireless controller")):
             self.controller_type = "ps"
         self._axis_map = self.AXIS_MAP[self.controller_type]
-        print(f"   Type détecté : {self.controller_type}")
+        n_axes = self.joystick.get_numaxes()
+        n_btns = self.joystick.get_numbuttons()
+        print(f"   Type détecté : {self.controller_type}  |  axes={n_axes}  boutons={n_btns}")
         return True
 
     def _apply_deadzone(self, value: float) -> float:
@@ -115,18 +117,26 @@ class Controller:
                 else 0.0
             )
 
-        # Xbox 360 DirectInput : gâchettes combinées sur l'axe 2
-        # (LT = côté négatif, RT = côté positif)
+        # ── Lecture des gâchettes ──────────────────────────────────────
+        lt_raw = safe_axis(m["lt"])
+        rt_raw = safe_axis(m["rt"])  # 0.0 si axe hors plage
+
         if self.controller_type == "xbox" and num_axes <= 5:
+            # Xbox 360 DirectInput : gâchettes combinées sur l'axe 2
+            # LT = côté négatif, RT = côté positif
             combined = safe_axis(2)
             lt = max(0.0, -combined)
             rt = max(0.0, combined)
+        elif m["rt"] >= num_axes:
+            # Axe RT hors plage : gâchettes probablement combinées sur l'axe LT
+            # L2 = côté positif, R2 = côté négatif
+            lt = max(0.0, lt_raw)
+            rt = max(0.0, -lt_raw)
         else:
-            lt_raw = safe_axis(m["lt"])
-            rt_raw = safe_axis(m["rt"])
-            # Normalisation universelle : gère [-1,1] (Xbox/PS Linux) et [0,1] (PS Windows)
+            # Normalisation universelle : gère [-1,1] et [0,1]
             lt = (lt_raw + 1) / 2 if lt_raw < -0.5 else max(0.0, lt_raw)
             rt = (rt_raw + 1) / 2 if rt_raw < -0.5 else max(0.0, rt_raw)
+
         buttons = {
             i: bool(self.joystick.get_button(i))
             for i in range(self.joystick.get_numbuttons())
