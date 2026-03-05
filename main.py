@@ -50,11 +50,32 @@ def parse_args():
     )
     parser.add_argument(
         "game_id",
+        nargs="?",
         choices=list(GAMES.keys()),
         help="Jeu à lancer : reflex | labyrinth | shooter | racing",
     )
     parser.add_argument(
-        "player_name", help="Nom du joueur (ex: Thomas) ou de l'agent (ex: Agent_IA)"
+        "player_name",
+        nargs="?",
+        help="Nom du joueur (ex: Thomas) ou de l'agent (ex: Agent_IA)",
+    )
+    parser.add_argument(
+        "--game",
+        dest="game_flag",
+        choices=list(GAMES.keys()),
+        metavar="GAME_ID",
+        help="ID du jeu (alternative à l'argument positionnel)",
+    )
+    parser.add_argument(
+        "--player",
+        dest="player_flag",
+        metavar="NOM",
+        help="Nom du joueur (alternative à l'argument positionnel)",
+    )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Lance le diagnostic manette en temps réel (aucun jeu requis)",
     )
     parser.add_argument(
         "--agent",
@@ -94,6 +115,27 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    # ── Diagnostic manette ────────────────────────────────────────────────────
+    if args.test:
+        from test_controller import main as run_test
+        run_test()
+        sys.exit(0)
+
+    # ── Résolution game_id / player_name (positionnel ou flag) ───────────────
+    game_id     = args.game_id     or args.game_flag
+    player_name = args.player_name or args.player_flag
+
+    if not game_id or not player_name:
+        print("Usage : python main.py <game_id> <player_name>")
+        print("        python main.py --game <game_id> --player <player_name>")
+        print("        python main.py --test   (diagnostic manette)")
+        print(f"\nJeux disponibles : {', '.join(GAMES.keys())}")
+        sys.exit(1)
+
+    # Rétro-injecter pour que le reste du code utilise args.game_id / args.player_name
+    args.game_id     = game_id
+    args.player_name = player_name
 
     # ── Lister les profils ────────────────────────────────────────────────────
     if args.list_profiles:
