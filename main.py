@@ -158,22 +158,63 @@ def main():
             print(f"  Score attendu : ~{agent.profile.expected_score:.0f}")
         print(f"{'='*50}\n")
 
-        # ── Résumé LLM async (joueurs humains uniquement) ────────────────────
+        # ── Résumé LLM Mistral (joueurs humains uniquement) ──────────────────
         if not agent:
             try:
-                from core.llm_summary import generate_and_save_async
+                from core.llm_summary import generate_session_summary, save_summary_to_supabase
                 from core.supabase_client import fetch_sessions_by_game, fetch_sessions_by_player
 
                 all_sessions    = fetch_sessions_by_game(args.game_id)
                 player_sessions = fetch_sessions_by_player(args.player_name)
 
-                # Non-bloquant : le résumé arrive dans le dashboard ~10-30s après
-                generate_and_save_async(features, all_sessions, player_sessions)
+                print("\n🧠 Génération du résumé IA (Mistral)...")
+                summary = generate_session_summary(features, all_sessions, player_sessions)
 
-                # Ouvrir le navigateur sur la page post-session
-                url = f"http://127.0.0.1:8050/?player={args.player_name}&game={args.game_id}"
+                # ── Affichage terminal ────────────────────────────────────────
+                sep = "═" * 52
+                print(f"\n{sep}")
+                emoji = summary.get("emoji_humeur", "🎮")
+                titre = summary.get("titre", "Résumé de session")
+                print(f"  {emoji}  {titre}")
+                print(sep)
+
+                print(f"\n{summary.get('resume', '')}\n")
+
+                pf = summary.get("points_forts", [])
+                if pf:
+                    print("💪 Points forts :")
+                    for point in pf:
+                        print(f"   ✓ {point}")
+
+                axes = summary.get("axes_amelioration", [])
+                if axes:
+                    print("\n📈 Axes d'amélioration :")
+                    for axe in axes:
+                        print(f"   → {axe}")
+
+                cl_glob  = summary.get("classement_global", "")
+                cl_perso = summary.get("classement_personnel", "")
+                if cl_glob:
+                    print(f"\n🏆 {cl_glob}")
+                if cl_perso:
+                    print(f"📊 {cl_perso}")
+
+                conseil = summary.get("conseil", "")
+                if conseil:
+                    print(f"\n💡 Conseil : {conseil}")
+
+                print(f"\n{sep}\n")
+
+                # Sauvegarde Supabase (synchrone pour que le dashboard la trouve immédiatement)
+                import time as _time
+                ts = int(_time.time())
+                save_summary_to_supabase(features, summary)
+
+                # Ouvrir le navigateur sur la page post-session avec timestamp
+                url = (f"http://127.0.0.1:8050/?player={args.player_name}"
+                       f"&game={args.game_id}&ts={ts}")
                 webbrowser.open(url)
-                print(f"🌐 Page résumé ouverte : {url}")
+                print(f"🌐 Résumé détaillé disponible sur : {url}")
 
             except Exception as e:
                 print(f"⚠️  Résumé LLM indisponible : {e}")

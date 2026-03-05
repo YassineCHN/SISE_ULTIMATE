@@ -4,16 +4,14 @@ Retry automatique sur 429, timeout 10s max, non-bloquant.
 """
 
 import os, json, time, threading, requests
-from dotenv import load_dotenv
-
-load_dotenv()
 
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "").strip().strip('"')
 MODEL   = "mistral-small-latest"
 API_URL = "https://api.mistral.ai/v1/chat/completions"
-TIMEOUT = 25    # secondes max par tentative
+TIMEOUT = (5, 15)  # (connect, read) — plus fiable sur Windows
 MAX_RETRIES = 3
-RETRY_DELAY = 5 # secondes entre retries sur 429
+RETRY_DELAY = 5    # secondes entre retries sur 429
+MAX_WAIT    = 30   # attente max par retry — si Retry-After > MAX_WAIT, on abandonne
 
 GAME_LABELS = {
     "reflex":    "Reflex Challenge",
@@ -40,80 +38,22 @@ def _build_prompt(features, all_sessions, player_sessions):
         rank_personal = next((i+1 for i, s in enumerate(p_scores) if s <= features.score), n_player)
         personal_best = max(s.get("score", 0) for s in player_sessions)
         personal_avg  = round(sum(s.get("score", 0) for s in player_sessions) / n_player, 0)
-        progression   = round(features.score - personal_avg, 0)
     else:
-        rank_personal, personal_best, personal_avg, progression = 1, features.score, features.score, 0
+        rank_personal, personal_best, personal_avg = 1, features.score, features.score
 
     global_avg  = round(sum(s.get("score", 0) for s in all_sessions) / max(n_total, 1), 0) if all_sessions else 0
     global_best = max((s.get("score", 0) for s in all_sessions), default=0)
 
-    # Interprétation des métriques pour guider l'IA
-    btn_interp = (
-        "très peu de boutons (joueur calme/stratège)" if features.btn_press_rate < 1 else
-        "rythme d'appuis modéré (joueur équilibré)" if features.btn_press_rate < 2.5 else
-        "fréquence élevée (joueur frénétique/agressif)" if features.btn_press_rate < 4 else
-        "fréquence extrême (joueur ultra-réactif)"
-    )
-    joystick_interp = (
-        "mouvements très précis et maîtrisés" if features.lx_std < 0.15 else
-        "mouvements fluides et contrôlés" if features.lx_std < 0.30 else
-        "mouvements amples et dynamiques" if features.lx_std < 0.45 else
-        "mouvements chaotiques/imprévisibles"
-    )
-    regularity_interp = (
-        "rythme très régulier et méthodique" if features.input_regularity < 0.1 else
-        "rythme assez constant" if features.input_regularity < 0.25 else
-        "jeu saccadé avec des accélérations" if features.input_regularity < 0.5 else
-        "timing très irrégulier/impulsif"
-    )
-    vs_avg = "au-dessus de la moyenne" if features.score > global_avg else "en-dessous de la moyenne"
-    prog_txt = f"+{progression:.0f} au-dessus de ta moyenne" if progression >= 0 else f"{progression:.0f} par rapport à ta moyenne"
+    return f"""Tu es un coach gaming pour le projet SISE Gaming Analytics.
+Génère un résumé de session personnalisé en français.
 
-    return f"""Tu es un coach gaming expert pour le projet SISE Gaming Analytics.
-Génère une analyse de session COMPLÈTE, DÉTAILLÉE et COHÉRENTE en français.
-Utilise OBLIGATOIREMENT les vraies valeurs numériques fournies dans tes phrases.
-Ne génère pas de texte générique — chaque phrase doit être spécifique à cette session.
+Session : {features.player_name} | {game_label} | Score: {features.score} | Durée: {features.duration_sec:.0f}s
+Boutons: {features.btn_press_rate:.2f}/s | Joystick: lx={features.lx_std:.3f} ly={features.ly_std:.3f} | Régularité: {features.input_regularity:.2f}
+Rang global: {rank_global}/{n_total} ({pct_global}% battus) | Rang perso: {rank_personal}/{n_player}
+Meilleur perso: {personal_best} | Moyenne perso: {personal_avg} | Moyenne globale: {global_avg} | Record: {global_best}
 
-=== SESSION ===
-Joueur : {features.player_name}
-Jeu    : {game_label}
-Score  : {features.score} pts  ({vs_avg} de {global_avg} pts)
-Durée  : {features.duration_sec:.0f} secondes
-
-=== MÉTRIQUES DÉTAILLÉES ===
-• Fréquence boutons : {features.btn_press_rate:.2f} appuis/s → {btn_interp}
-• Variété des boutons utilisés : {features.btn_variety:.0%}
-• Agitation joystick G : lx={features.lx_std:.3f} | ly={features.ly_std:.3f} → {joystick_interp}
-• Régularité des inputs : {features.input_regularity:.3f} → {regularity_interp}
-• Brutalité gâchette G : {features.lt_brutality:.3f} | D : {features.rt_brutality:.3f}
-
-=== CLASSEMENTS ===
-• Rang global  : {rank_global} / {n_total} joueurs — {pct_global}% battus
-• Rang perso   : {rank_personal} / {n_player} de tes sessions
-• Ton record   : {personal_best} pts | Ta moyenne : {personal_avg} pts | {prog_txt}
-• Record absolu: {global_best} pts | Moyenne globale : {global_avg} pts
-
-Réponds UNIQUEMENT avec ce JSON valide (sans markdown, sans texte avant ou après) :
-{{
-  "titre": "titre accrocheur et personnalisé mentionnant {features.player_name} et/ou le jeu (max 65 chars)",
-  "emoji_humeur": "1 emoji représentant parfaitement le niveau de la session",
-  "resume": "3-4 phrases complètes incluant le score exact ({features.score}), la durée ({features.duration_sec:.0f}s) et une comparaison avec la moyenne ({global_avg}). Sois précis et engageant.",
-  "analyse_style": "2-3 phrases analysant précisément le style de jeu basé sur les métriques : fréquence {features.btn_press_rate:.2f}/s signifie quoi pour ce joueur, joystick {features.lx_std:.3f} révèle quoi, régularité {features.input_regularity:.3f} indique quoi.",
-  "profil_joueur": "label court et précis du profil de jeu (ex: Sniper Méthodique, Assaillant Frénétique, Stratège Posé, Explorateur Chaotique...)",
-  "points_forts": [
-    "point fort #1 basé sur une métrique précise avec chiffres",
-    "point fort #2 basé sur une autre métrique",
-    "point fort #3 si pertinent"
-  ],
-  "axes_amelioration": [
-    "axe #1 très précis avec la métrique concernée et comment l'améliorer",
-    "axe #2 concret et actionnable"
-  ],
-  "classement_global": "phrase précise : rang {rank_global}/{n_total}, {pct_global}% battus, comparaison avec record {global_best}",
-  "classement_personnel": "phrase sur l'évolution : {prog_txt}, par rapport à {n_player} sessions",
-  "conseil": "1 conseil TRÈS PRÉCIS et actionnable pour la prochaine partie, basé sur la métrique la plus faible",
-  "objectif": "1 objectif chiffré concret pour la prochaine partie (ex: dépasser X pts, réduire la fréquence boutons à Y/s...)"
-}}"""
+Réponds UNIQUEMENT avec du JSON valide sans markdown:
+{{"titre":"titre accrocheur","resume":"2-3 phrases personnalisées avec les vraies stats","points_forts":["point précis 1","point précis 2"],"axes_amelioration":["axe précis 1","axe précis 2"],"classement_global":"phrase avec les chiffres réels","classement_personnel":"phrase sur évolution perso","conseil":"conseil précis et actionnable","emoji_humeur":"emoji"}}"""
 
 
 def generate_session_summary(features, all_sessions=None, player_sessions=None):
@@ -137,14 +77,33 @@ def generate_session_summary(features, all_sessions=None, player_sessions=None):
             )
 
             if response.status_code == 429:
-                wait = RETRY_DELAY * attempt
-                print(f"⏳ Mistral rate limit — attente {wait}s (tentative {attempt}/{MAX_RETRIES})")
-                time.sleep(wait)
+                raw_ra = response.headers.get("Retry-After")
+                if raw_ra is None:
+                    # Pas de Retry-After → quota épuisé (daily/monthly), inutile de retry
+                    print("⏳ Mistral 429 — quota épuisé (pas de Retry-After) → mock immédiat")
+                    break
+                try:
+                    retry_after = int(float(raw_ra))
+                except (ValueError, TypeError):
+                    retry_after = RETRY_DELAY * attempt
+                if retry_after > MAX_WAIT:
+                    print(f"⏳ Mistral 429 — Retry-After={retry_after}s > max({MAX_WAIT}s) → mock immédiat")
+                    break
+                print(f"⏳ Mistral 429 — attente {retry_after}s (tentative {attempt}/{MAX_RETRIES})")
+                time.sleep(retry_after)
                 continue
 
+            # Log explicite pour 401/403/500 avant raise_for_status
+            if not response.ok:
+                print(f"⚠️  HTTP {response.status_code} Mistral : {response.text[:200]}")
             response.raise_for_status()
-            raw    = response.json()["choices"][0]["message"]["content"].strip()
-            raw    = raw.replace("```json", "").replace("```", "").strip()
+
+            raw = response.json()["choices"][0]["message"]["content"].strip()
+            raw = raw.replace("```json", "").replace("```", "").strip()
+            # Extraction robuste : isole le bloc JSON si du texte l'entoure
+            start, end = raw.find("{"), raw.rfind("}")
+            if start != -1 and end != -1:
+                raw = raw[start : end + 1]
             result = json.loads(raw)
             print(f"✅ Résumé IA généré pour {features.player_name} @ {features.game_id}")
             return result
@@ -166,66 +125,40 @@ def generate_session_summary(features, all_sessions=None, player_sessions=None):
 
 
 def generate_and_save_async(features, all_sessions=None, player_sessions=None):
-    """Lance génération + save en background. Non-bloquant."""
+    """Sauvegarde un mock immédiatement, puis tente le vrai LLM en background."""
+    # Mock sauvegardé de suite → dashboard l'affiche en quelques secondes
+    mock = _mock_summary(features)
+    save_summary_to_supabase(features, mock)
+    print("🧠 Résumé mock sauvegardé — LLM en cours en background...")
+
     def _run():
-        summary = generate_session_summary(features, all_sessions, player_sessions)
-        save_summary_to_supabase(features, summary)
+        try:
+            summary = generate_session_summary(features, all_sessions, player_sessions)
+            if not summary.get("mock"):
+                # Résumé LLM réel → insert une seconde entrée plus récente
+                save_summary_to_supabase(features, summary)
+                print("✅ Résumé LLM remplacé dans Supabase")
+        except Exception as e:
+            # Ne pas laisser le thread mourir silencieusement
+            print(f"⚠️  Thread LLM — exception non gérée : {e}")
 
     t = threading.Thread(target=_run, daemon=True)
     t.start()
-    print("🧠 Résumé IA en cours (visible dans le dashboard onglet Résumés sous ~30s)...")
     return t
 
 
 def _mock_summary(features):
     game_label = GAME_LABELS.get(features.game_id, features.game_id)
-    btn_label = (
-        "très calme et stratège" if features.btn_press_rate < 1 else
-        "équilibré" if features.btn_press_rate < 2.5 else
-        "agressif et frénétique"
-    )
-    joy_label = (
-        "précis et contrôlés" if features.lx_std < 0.25 else
-        "amples et dynamiques" if features.lx_std < 0.45 else "imprévisibles"
-    )
     return {
-        "titre":                f"{features.player_name} — Session {game_label} ({features.score} pts)",
+        "titre":                f"Session de {features.player_name} — {game_label}",
+        "resume":               f"{features.player_name} a joué au {game_label} pendant "
+                                f"{features.duration_sec:.0f}s avec un score de {features.score}.",
+        "points_forts":         ["Session complétée", "Données enregistrées"],
+        "axes_amelioration":    ["Continue à jouer pour affiner ton profil"],
+        "classement_global":    "Classement en cours de calcul...",
+        "classement_personnel": "Première session ou données insuffisantes",
+        "conseil":              "Lance une nouvelle partie pour améliorer ton profil !",
         "emoji_humeur":         "🎮",
-        "resume":               (
-            f"{features.player_name} a joué au {game_label} pendant {features.duration_sec:.0f}s "
-            f"et a obtenu un score de {features.score} points. "
-            f"Avec {features.btn_press_rate:.2f} appuis/s, le style de jeu est {btn_label}. "
-            f"Les mouvements de joystick (lx={features.lx_std:.3f}) sont {joy_label}."
-        ),
-        "analyse_style":        (
-            f"La fréquence de {features.btn_press_rate:.2f} appuis/s révèle un joueur {btn_label}. "
-            f"La régularité des inputs à {features.input_regularity:.3f} indique un rythme "
-            f"{'méthodique et constant' if features.input_regularity < 0.25 else 'variable avec des phases impulsives'}. "
-            f"Les mouvements de joystick {joy_label} suggèrent une approche "
-            f"{'précise et calculée' if features.lx_std < 0.3 else 'dynamique et réactive'}."
-        ),
-        "profil_joueur":        (
-            "Stratège Posé" if features.btn_press_rate < 1 and features.lx_std < 0.25 else
-            "Tireur de Précision" if features.lx_std < 0.2 else
-            "Assaillant Frénétique" if features.btn_press_rate > 3 else
-            "Joueur Équilibré"
-        ),
-        "points_forts":         [
-            f"Score de {features.score} pts enregistré avec succès",
-            f"Session complète de {features.duration_sec:.0f}s ({features.btn_press_rate:.2f} inputs/s)",
-            f"Données de session sauvegardées pour le suivi de progression",
-        ],
-        "axes_amelioration":    [
-            f"Travailler la régularité des inputs (actuelle : {features.input_regularity:.3f})",
-            f"Optimiser l'utilisation du joystick pour plus de précision (lx_std={features.lx_std:.3f})",
-        ],
-        "classement_global":    "Classement global en cours de calcul (API IA indisponible).",
-        "classement_personnel": f"Session enregistrée — données insuffisantes pour calculer l'évolution personnelle.",
-        "conseil":              (
-            f"Concentre-toi sur la régularité de tes inputs pour maintenir un rythme constant. "
-            f"Vise un écart-type inférieur à 0.15 (actuellement {features.input_regularity:.3f})."
-        ),
-        "objectif":             f"Dépasser {features.score + max(100, features.score // 10)} pts à la prochaine partie.",
         "mock":                 True,
     }
 
@@ -260,11 +193,19 @@ Contexte — données sessions disponibles :
                 headers={"Authorization": f"Bearer {MISTRAL_API_KEY}",
                          "Content-Type": "application/json"},
                 json={"model": MODEL, "messages": messages},
-                timeout=15,
+                timeout=TIMEOUT,  # utilise la constante globale (5, 15)
             )
             if r.status_code == 429:
-                time.sleep(RETRY_DELAY * attempt)
+                try:
+                    wait = min(int(float(r.headers.get("Retry-After", RETRY_DELAY * attempt))), MAX_WAIT)
+                except (ValueError, TypeError):
+                    wait = RETRY_DELAY * attempt
+                if wait > MAX_WAIT:
+                    break
+                time.sleep(wait)
                 continue
+            if not r.ok:
+                print(f"⚠️  Chat HTTP {r.status_code} : {r.text[:150]}")
             r.raise_for_status()
             return r.json()["choices"][0]["message"]["content"].strip()
         except requests.exceptions.Timeout:
