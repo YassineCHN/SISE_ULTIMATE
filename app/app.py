@@ -2292,7 +2292,7 @@ def update_live_inputs(n, theme):
     rows = []
     try:
         from core.supabase_client import fetch_live_inputs
-        rows = fetch_live_inputs(limit=60)
+        rows = fetch_live_inputs(limit=90)
     except Exception:
         pass
 

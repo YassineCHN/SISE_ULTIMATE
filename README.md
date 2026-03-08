@@ -208,10 +208,43 @@ python analysis_shooter.py
 
 ### Diagnostiquer la manette
 
+`test_controller.py` est un outil de diagnostic graphique (Pygame) qui affiche en temps réel tous les axes bruts, boutons et le mapping interprété par le module `Controller` :
+
 ```bash
 python main.py --test
 # ou directement
 python test_controller.py
+```
+
+**Manettes testées et supportées :**
+
+| Manette | Détection automatique |
+|---|---|
+| Xbox 360 / Xbox One / Series | Oui (`"xbox"`, `"xinput"` dans le nom) |
+| PS4 DualShock 4 | Oui (`"dualshock"`, `"wireless controller"`, `"sony"`) |
+| PS5 DualSense | Oui (`"dualsense"`) |
+| PS3 DualShock 3 | Oui (`"ps3"`, `"sixaxis"`) — nécessite SCP Toolkit sur Windows |
+| Manette générique USB | Fallback automatique (mapping PS) |
+| Clavier | Fallback si aucune manette détectée |
+
+> **Aucune manette disponible ?** Le fallback clavier est activé automatiquement :
+> `Flèches` = joystick gauche · `Z/X/C/V` = boutons · `A/E` = gâchettes
+
+### Adapter le mapping à une manette non reconnue
+
+Si votre manette fonctionne partiellement (axes inversés, mauvais boutons), lancez d'abord `test_controller.py` pour identifier les indices d'axes bruts, puis modifiez le profil `"generic"` dans `core/controller.py` :
+
+```python
+# core/controller.py — lignes 38-50
+AXIS_MAP = {
+    ...
+    "generic": {"lx": 0, "ly": 1, "rx": 2, "ry": 3, "lt": 4, "rt": 5},
+    #            ↑ remplacer les indices selon ce qu'affiche test_controller.py
+}
+L1R1_MAP = {
+    ...
+    "generic": (4, 5),   # indices des boutons L1, R1
+}
 ```
 
 ---
