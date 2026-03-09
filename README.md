@@ -332,7 +332,7 @@ Le clustering UMAP + K-Means identifie 4 archétypes :
 | Mini-jeux | [Pygame](https://www.pygame.org/) 2.6 |
 | Dashboard | [Dash](https://dash.plotly.com/) 2.17 + [Plotly](https://plotly.com/) 5.22 |
 | ML | [scikit-learn](https://scikit-learn.org/) 1.4 + [UMAP](https://umap-learn.readthedocs.io/) 0.5 |
-| LLM / Coach IA | [Mistral AI](https://mistral.ai/) (mistral-medium) |
+| LLM / Coach IA | [Mistral AI](https://mistral.ai/) (mistral-small-latest) |
 | Base de données | [Supabase](https://supabase.com/) (PostgreSQL) |
 | Data | [NumPy](https://numpy.org/) 1.26 + [Pandas](https://pandas.pydata.org/) 2.2 |
 

@@ -62,7 +62,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # conda
-conda install --file requirements.txt
+pip install -r requirements.txt
 
 # uv
 uv pip install -r requirements.txt

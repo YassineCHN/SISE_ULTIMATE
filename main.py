@@ -22,7 +22,6 @@ import os
 import webbrowser
 
 # ── Import des jeux ───────────────────────────────────────────────────────────
-from games.reflex_game import ReflexGame
 import pygame
 from games.reflex_game import ReflexGame
 from games.labyrinth_game import LabyrinthGame
