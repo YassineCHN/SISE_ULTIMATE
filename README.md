@@ -9,6 +9,7 @@
 [![Mistral](https://img.shields.io/badge/LLM-Mistral%20AI-orange)](https://mistral.ai/)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey)](LICENSE)
 [![Présentation](https://img.shields.io/badge/Slides-Canva-8B3DFF?logo=canva)](https://www.canva.com/design/DAHC_9YOXjQ/RTeTzMMWfSxd0moCdxwVgA/edit?utm_content=DAHC_9YOXjQ&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
+[![Démo](https://img.shields.io/badge/Démo-YouTube-FF0000?logo=youtube)](https://youtu.be/3nCvRCUtEYM)
 
 ---
 
