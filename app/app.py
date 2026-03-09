@@ -548,6 +548,7 @@ def _get_shooter_analysis(df_real):
             _profils_cache[key] = compute_shooter_analysis(df_real)
         return _profils_cache[key]
     except Exception as e:
+        import traceback; traceback.print_exc()
         print(f"⚠️  Analyse shooter échouée : {e}")
         return None
 
@@ -2162,29 +2163,34 @@ def save_profils_tab(tab):
     dash.dependencies.State("profils-tab-store", "data"),
 )
 def render_all(theme, page, summary_data, sessions_data, url_params, profils_tab):
-    t       = THEMES[theme]
-    df_real = pd.DataFrame(sessions_data) if sessions_data and len(sessions_data) >= 3 else None
-    params  = url_params or {}
+    print(f"[render_all] page={page}, sessions={len(sessions_data) if sessions_data else 0}")
+    try:
+        t       = THEMES[theme]
+        df_real = pd.DataFrame(sessions_data) if sessions_data and len(sessions_data) >= 3 else None
+        params  = url_params or {}
 
-    container_style = {"display": "flex", "minHeight": "100vh",
-                       "background": t["bg"], "color": t["text"], "fontFamily": t["font_body"]}
-    sidebar_style   = {"width": "220px", "minHeight": "100vh",
-                       "background": t["sidebar"], "borderRight": f"1px solid {t['border']}",
-                       "padding": "24px", "position": "relative", "fontFamily": t["font_body"]}
+        container_style = {"display": "flex", "minHeight": "100vh",
+                           "background": t["bg"], "color": t["text"], "fontFamily": t["font_body"]}
+        sidebar_style   = {"width": "220px", "minHeight": "100vh",
+                           "background": t["sidebar"], "borderRight": f"1px solid {t['border']}",
+                           "padding": "24px", "position": "relative", "fontFamily": t["font_body"]}
 
-    # Rendu lazy : seule la page active est calculée (+ postsession toujours légère)
-    _page_builders = {
-        "game":        lambda: page_game(theme, df_real),
-        "profils":     lambda: page_profils(theme, df_real, active_tab=profils_tab or "clustering"),
-        "classifier":  lambda: page_classifier(theme, df_real),
-        "agent":       lambda: page_agent(theme, df_real),
-        "summary":     lambda: page_summary(theme),
-        "chat":        lambda: page_chat(theme),
-        "postsession": lambda: page_postsession(theme, params.get("player", ""), params.get("game", ""), summary_data),
-        "leaderboard": lambda: page_leaderboard(theme, df_real),
-    }
-    active_page = _page_builders.get(page, _page_builders["game"])()
-    return container_style, sidebar_style, active_page
+        # Rendu lazy : seule la page active est calculée (+ postsession toujours légère)
+        _page_builders = {
+            "game":        lambda: page_game(theme, df_real),
+            "profils":     lambda: page_profils(theme, df_real, active_tab=profils_tab or "clustering"),
+            "classifier":  lambda: page_classifier(theme, df_real),
+            "agent":       lambda: page_agent(theme, df_real),
+            "summary":     lambda: page_summary(theme),
+            "chat":        lambda: page_chat(theme),
+            "postsession": lambda: page_postsession(theme, params.get("player", ""), params.get("game", ""), summary_data),
+            "leaderboard": lambda: page_leaderboard(theme, df_real),
+        }
+        active_page = _page_builders.get(page, _page_builders["game"])()
+        return container_style, sidebar_style, active_page
+    except Exception:
+        import traceback; traceback.print_exc()
+        raise
 
 
 @app.callback(
@@ -2905,6 +2911,15 @@ def send_chat_message(n_clicks, n_submit, message, history, sessions_data):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=8050)
+    if _initial_sessions:
+        import threading, pandas as _pd_prewarm
+        def _prewarm():
+            try:
+                _get_shooter_analysis(_pd_prewarm.DataFrame(_initial_sessions))
+                print("✅ Cache UMAP préchauffé")
+            except Exception:
+                pass
+        threading.Thread(target=_prewarm, daemon=True).start()
+    app.run(debug=True, port=8050, threaded=True, use_reloader=False)
 
 
