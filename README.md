@@ -13,6 +13,13 @@
 
 ---
 
+## 🎬 Démonstration vidéo
+
+> Vidéo de présentation complète du projet :
+> **[Voir la démo sur YouTube](https://youtu.be/3nCvRCUtEYM)**
+
+---
+
 ## 📖 Présentation
 
 **SISE Ultimate Games** est une application de **profilage de joueurs en temps réel** à partir des inputs d'une manette de jeu (Xbox / PlayStation). Chaque pression de bouton, mouvement de joystick et utilisation de gâchette est capturé à 30 Hz, analysé et transformé en un profil comportemental unique.
