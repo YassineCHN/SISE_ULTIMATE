@@ -1,6 +1,10 @@
+<p align="center">
+  <img src="app/assets/logo_sise_gaming.png" alt="SISE Gaming Logo" width="200"/>
+</p>
+
 # 🎮 SISE Ultimate Games — Controller Profiler
 
-> **Projet IA Temps Réel · Master SISE 2025–2026**  
+> **Projet IA Temps Réel · Master SISE 2025–2026**
 > Analyse comportementale de joueurs via manette Xbox/PS en temps réel, clustering de profils et coaching IA.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)](https://www.python.org/)
@@ -17,6 +21,19 @@
 
 > Vidéo de présentation complète du projet :
 > **[Voir la démo sur YouTube](https://youtu.be/3nCvRCUtEYM)**
+
+---
+
+## 📸 Aperçu
+
+<p align="center">
+  <img src="app/assets/app_game1.PNG" width="45%" alt="Screen 1"/>
+  <img src="app/assets/app_game2.PNG" width="45%" alt="Screen 2"/>
+</p>
+<p align="center">
+  <img src="app/assets/app_game3.PNG" width="45%" alt="Screen 3"/>
+  <img src="app/assets/app_game4.PNG" width="45%" alt="Screen 4"/>
+</p>
 
 ---
 
