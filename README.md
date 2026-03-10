@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="app/assets/logo_sise_gaming.png" alt="SISE Gaming Logo" width="200"/>
+  <img src="app/assets/logo_sise_gaming.png" alt="SISE Gaming Logo" width="350"/>
 </p>
 
 # 🎮 SISE Ultimate Games — Controller Profiler
@@ -26,14 +26,16 @@
 
 ## 📸 Aperçu
 
-<p align="center">
-  <img src="app/assets/app_game1.PNG" width="45%" alt="Screen 1"/>
-  <img src="app/assets/app_game2.PNG" width="45%" alt="Screen 2"/>
-</p>
-<p align="center">
-  <img src="app/assets/app_game3.PNG" width="45%" alt="Screen 3"/>
-  <img src="app/assets/app_game4.PNG" width="45%" alt="Screen 4"/>
-</p>
+<table align="center" width="100%">
+  <tr>
+    <td align="center" width="50%"><img src="app/assets/app_game1.PNG" width="100%" alt="Screen 1"/></td>
+    <td align="center" width="50%"><img src="app/assets/app_game2.PNG" width="100%" alt="Screen 2"/></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><img src="app/assets/app_game3.PNG" width="100%" alt="Screen 3"/></td>
+    <td align="center" width="50%"><img src="app/assets/app_game4.PNG" width="100%" alt="Screen 4"/></td>
+  </tr>
+</table>
 
 ---
 
